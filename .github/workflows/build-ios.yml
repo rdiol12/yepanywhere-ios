@@ -1,0 +1,61 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo prebuild
+        run: npx expo prebuild --platform ios --clean --non-interactive
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: pods-
+
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
+      - name: Build archive (unsigned)
+        run: |
+          xcodebuild archive \
+            -workspace ios/YepAnywhere.xcworkspace \
+            -scheme YepAnywhere \
+            -configuration Release \
+            -archivePath $PWD/build/YepAnywhere.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            -allowProvisioningUpdates 2>&1 | tee build.log | xcpretty || cat build.log
+
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/YepAnywhere.xcarchive/Products/Applications/YepAnywhere.app build/Payload/
+          cd build && zip -r YepAnywhere.ipa Payload/
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: YepAnywhere-iOS
+          path: build/YepAnywhere.ipa
+          retention-days: 30
