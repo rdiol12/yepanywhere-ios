@@ -13,31 +13,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Install xcodegen
+        run: brew install xcodegen
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Expo prebuild
-        run: npx expo prebuild --platform ios --clean --non-interactive
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: pods-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: pods-
-
-      - name: Install CocoaPods
-        run: cd ios && pod install
+      - name: Generate Xcode project
+        run: xcodegen generate
 
       - name: Build app (unsigned)
         run: |
           xcodebuild build \
-            -workspace ios/YepAnywhere.xcworkspace \
+            -project YepAnywhere.xcodeproj \
             -scheme YepAnywhere \
             -configuration Release \
             -sdk iphoneos \
@@ -49,7 +34,7 @@ jobs:
 
       - name: Package IPA
         run: |
-          APP_PATH=$(find build/DerivedData -name "*.app" -type d | grep -v "\.appex" | head -1)
+          APP_PATH=$(find build/DerivedData -name "YepAnywhere.app" -type d | head -1)
           echo "Found app at: $APP_PATH"
           mkdir -p build/Payload
           cp -r "$APP_PATH" build/Payload/
