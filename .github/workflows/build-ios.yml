@@ -34,23 +34,22 @@ jobs:
       - name: Install CocoaPods
         run: cd ios && pod install
 
-      - name: Build archive (unsigned)
+      - name: Build app (unsigned)
         run: |
-          xcodebuild archive \
+          xcodebuild build \
             -workspace ios/YepAnywhere.xcworkspace \
             -scheme YepAnywhere \
             -configuration Release \
-            -archivePath $PWD/build/YepAnywhere.xcarchive \
+            -sdk iphoneos \
+            -derivedDataPath $PWD/build/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            SKIP_INSTALL=NO \
-            INSTALL_PATH=/Applications \
-            -allowProvisioningUpdates 2>&1 | tee build.log | xcpretty || cat build.log
+            2>&1 | xcpretty
 
       - name: Package IPA
         run: |
-          APP_PATH=$(find build/YepAnywhere.xcarchive -name "*.app" -type d | head -1)
+          APP_PATH=$(find build/DerivedData -name "*.app" -type d | grep -v "\.appex" | head -1)
           echo "Found app at: $APP_PATH"
           mkdir -p build/Payload
           cp -r "$APP_PATH" build/Payload/
